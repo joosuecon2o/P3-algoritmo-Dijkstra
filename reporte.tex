@@ -39,32 +39,22 @@
 \renewcommand{\lstlistingname}{Código}
 \setlength{\emergencystretch}{3em}  % evita líneas desbordadas por nombres en \texttt
 
-% ---------- Figura con un grafo generado y sus tres árboles ----------
+% ---------- Figura con un grafo generado y su árbol de Dijkstra ----------
 % #1 = nombre base del archivo (sin extensión), #2 = título, #3 = etiqueta
-\newcommand{\cuatrografos}[3]{%
+\newcommand{\grafoyarbol}[3]{%
 \begin{figure}[H]
     \centering
-    \begin{subfigure}{0.48\textwidth}
+    \begin{subfigure}{\textwidth}
         \centering
-        \includegraphics[width=\linewidth,height=0.36\textheight,keepaspectratio]{imagenes/generados/#1.png}
+        \includegraphics[width=\linewidth,height=0.38\textheight,keepaspectratio]{imagenes/generados/#1.png}
         \caption{Grafo generado}
-    \end{subfigure}\hfill
-    \begin{subfigure}{0.48\textwidth}
-        \centering
-        \includegraphics[width=\linewidth,height=0.36\textheight,keepaspectratio]{imagenes/calculados/#1_BFS.png}
-        \caption{Árbol BFS}
     \end{subfigure}
 
     \medskip
-    \begin{subfigure}{0.48\textwidth}
+    \begin{subfigure}{\textwidth}
         \centering
-        \includegraphics[width=\linewidth,height=0.36\textheight,keepaspectratio]{imagenes/calculados/#1_DFS_R.png}
-        \caption{Árbol DFS recursivo}
-    \end{subfigure}\hfill
-    \begin{subfigure}{0.48\textwidth}
-        \centering
-        \includegraphics[width=\linewidth,height=0.36\textheight,keepaspectratio]{imagenes/calculados/#1_DFS_I.png}
-        \caption{Árbol DFS iterativo}
+        \includegraphics[width=\linewidth,height=0.42\textheight,keepaspectratio]{imagenes/calculados/#1_Dijkstra.png}
+        \caption{Árbol de caminos más cortos}
     \end{subfigure}
     \caption{#2. El nodo fuente aparece en rojo.}
     \label{#3}
@@ -72,7 +62,7 @@
 \clearpage
 }
 
-\title{Proyecto 2\\Algoritmos BFS y DFS}
+\title{Proyecto 3\\Algoritmo de Dijkstra}
 \author{Josue gutierrez Andrade\\[4pt]\small Diseño y Análisis de Algoritmos}
 \date{}
 
@@ -81,12 +71,13 @@
 \maketitle
 
 \begin{abstract}
-Sobre la biblioteca de grafos del Proyecto~1 se implementan tres métodos de la
-clase \texttt{Grafo}: \texttt{BFS}, \texttt{DFS\_R} y \texttt{DFS\_I}. Dado un nodo
-fuente $s$, cada uno calcula el árbol inducido por la búsqueda a lo ancho o por la
-búsqueda en profundidad (recursiva e iterativa). Los métodos se aplicaron a 18
-grafos, generados con seis modelos y con 30, 100 y 500 nodos, lo que dio 54 árboles.
-Todos los grafos y árboles se exportaron a formato GraphViz y se visualizaron.
+Sobre la biblioteca de grafos de los proyectos anteriores se implementa el método
+\texttt{Dijkstra} de la clase \texttt{Grafo}. Dado un nodo fuente $s$, el método
+calcula el árbol de caminos más cortos y nombra cada nodo con su distancia a $s$;
+por ejemplo, \texttt{"2 (22.45)"}. El método se aplicó a 10 grafos con pesos
+aleatorios, generados con los cinco modelos aleatorios de la biblioteca con 30 y
+500 nodos. Todos los grafos y árboles se exportaron a formato GraphViz y se
+visualizaron.
 \end{abstract}
 
 \tableofcontents
@@ -95,162 +86,165 @@ Todos los grafos y árboles se exportaron a formato GraphViz y se visualizaron.
 % =====================================================================
 \section{Introducción}
 
-La búsqueda a lo ancho (BFS) y la búsqueda en profundidad (DFS) recorren todos los
-nodos alcanzables desde un nodo fuente $s$. Cada recorrido define un árbol con raíz
-en $s$: cuando un nodo $v$ se descubre desde un nodo $u$, la arista $(u, v)$ pasa a
-formar parte del árbol y $u$ se convierte en el padre de $v$. Los dos recorridos
-producen árboles con formas muy distintas. BFS genera árboles anchos y poco
-profundos, cuyos niveles coinciden con las distancias a $s$. DFS genera árboles
-angostos y profundos, que siguen un camino tan lejos como pueden antes de regresar.
+En un grafo con pesos no negativos en las aristas, la longitud de un camino es la
+suma de los pesos de sus aristas. El problema del camino más corto consiste en
+encontrar, para cada nodo $v$, un camino de longitud mínima desde un nodo fuente
+$s$. Esa longitud mínima es la distancia $d(v)$. El algoritmo de Dijkstra resuelve
+el problema para todos los nodos a la vez. Si para cada nodo $v \neq s$ se guarda
+el nodo desde el que se llegó a él por el camino más corto, esas aristas forman un
+árbol con raíz en $s$: el \emph{árbol de caminos más cortos}. En él, el único
+camino de $s$ a $v$ es un camino más corto en el grafo original.
 
 % =====================================================================
-\section{Representación de los grafos}
+\section{Pesos en la biblioteca de grafos}
 
-Los métodos se agregaron a la clase \texttt{Grafo} del Proyecto~1. Esa clase
-almacena el grafo como una lista de adyacencia basada en conjuntos: el atributo
-\texttt{\_vecinos} asocia a cada identificador de nodo el conjunto de
-identificadores adyacentes. Con esta representación, recorrer los vecinos de un
-nodo $u$ cuesta $O(\operatorname{grado}(u))$ y consultar si un nodo ya se visitó
-cuesta $O(1)$ en promedio, de modo que los tres recorridos toman tiempo
-$O(n + m)$, con $n$ nodos y $m$ aristas.
+Los grafos de los proyectos anteriores no tenían pesos, así que se hicieron estos
+cambios en la clase \texttt{Grafo}:
 
-Cada método devuelve el árbol como un nuevo objeto \texttt{Grafo}, con el mismo
-tipo (dirigido o no) que el original. El árbol contiene los nodos alcanzables desde
-$s$ y las aristas $(\text{padre}, \text{hijo})$ del recorrido. Por eso puede
-exportarse con \texttt{guardar\_graphviz}, igual que cualquier otro grafo. Si $s$
-no existe en el grafo, los tres métodos lanzan \texttt{KeyError}.
+\begin{itemize}
+    \item \texttt{agregar\_arista(u, v, peso)} guarda el peso en un diccionario
+          \texttt{\_pesos}, indexado por el par $(u, v)$; en un grafo no dirigido,
+          también por $(v, u)$. Con él, \texttt{peso(u, v)} consulta el peso de una
+          arista en tiempo $O(1)$.
+    \item \texttt{asignar\_pesos\_aleatorios(minimo, maximo)} asigna a cada arista
+          un peso uniforme en $[\text{minimo}, \text{maximo}]$, redondeado a dos
+          decimales.
+    \item \texttt{guardar\_graphviz} escribe el peso en el atributo
+          \texttt{weight}; por ejemplo, \texttt{"0" -{}- "26" [weight=11.07];}.
+\end{itemize}
+
+Los métodos \texttt{BFS}, \texttt{DFS\_R} y \texttt{DFS\_I} del Proyecto~2 se
+conservan sin cambios.
 
 % =====================================================================
-\section{Algoritmos}
+\section{Algoritmo de Dijkstra}
 
-\subsection{Búsqueda a lo ancho: \texttt{BFS(self, s)}}
+\subsection{Descripción}
 
-Se sigue el algoritmo por capas visto en clase:
-\[
-    L_0 = \{s\}, \qquad
-    L_{i+1} = \{\, v \notin L_0 \cup \dots \cup L_i \;:\; (u, v) \in E
-                 \text{ para algún } u \in L_i \,\}.
-\]
-Se recorre cada nodo $u$ de la capa actual y, por cada vecino $v$ que aún no se ha
-descubierto, se marca $v$ como descubierto, se agrega la arista $(u, v)$ al árbol y
-$v$ se añade a la siguiente capa. El ciclo termina cuando una capa queda vacía.
+Se sigue el algoritmo visto en clase. Sea $S$ el conjunto de nodos explorados,
+para los cuales ya se conoce la distancia definitiva. Al inicio $S = \emptyset$,
+$d(s) = 0$ y la distancia tentativa de los demás nodos es $\infty$. En cada paso:
 
-\begin{lstlisting}[caption={Método \texttt{BFS}.}]
-def BFS(self, s):
+\begin{enumerate}
+    \item Se elige el nodo $u \notin S$ con la menor distancia tentativa
+          (\emph{delmin}) y se agrega a $S$.
+    \item Para cada arista $(u, v)$ con $v \notin S$, si
+          $d(u) + \ell(u, v) < d(v)$, se actualiza $d(v) \leftarrow d(u) + \ell(u, v)$
+          y el padre de $v$ pasa a ser $u$ (\emph{decrease key}).
+\end{enumerate}
+
+El proceso termina cuando ya no quedan nodos alcanzables fuera de $S$. Las aristas
+$(\text{padre}(v), v)$ forman el árbol de caminos más cortos.
+
+\subsection{Implementación}
+
+La cola de prioridad es un montículo binario (módulo \texttt{heapq}). Como
+\texttt{heapq} no permite disminuir la prioridad de un elemento, el \emph{decrease
+key} se implementa insertando una nueva entrada con la distancia mejorada. Las
+entradas viejas de un nodo quedan en el montículo y se descartan al extraerlas si
+el nodo ya está en $S$. Cada entrada lleva además un contador de desempate, para
+que el montículo nunca tenga que comparar dos identificadores de nodo.
+
+\begin{lstlisting}[caption={Método \texttt{Dijkstra}.}]
+def Dijkstra(self, s):
     self._validar_fuente(s)
+    for arista in self.aristas:
+        if arista.peso is not None and arista.peso < 0:
+            raise ValueError("Dijkstra no admite aristas con peso negativo")
+
+    distancia = {s: 0}
+    padre = {s: None}
+    explorados = []         # nodos en el orden en que entran a S
+    en_s = set()
+    desempate = itertools.count()   # evita comparar identificadores de nodos
+    cola = [(0, next(desempate), s)]
+    while cola:
+        d_u, _, u = heapq.heappop(cola)          # delmin
+        if u in en_s:
+            continue                             # entrada obsoleta
+        en_s.add(u)
+        explorados.append(u)
+        for v in self._vecinos[u]:
+            if v in en_s:
+                continue
+            peso = self._pesos[(u, v)]
+            nueva = d_u + (1 if peso is None else peso)
+            if v not in distancia or nueva < distancia[v]:
+                distancia[v] = nueva             # decrease key
+                padre[v] = u
+                heapq.heappush(cola, (nueva, next(desempate), v))
+
     arbol = Grafo(self.dirigido)
-    arbol.agregar_nodo(s)
-    descubierto = {s}
-    capa = [s]
-    while capa:
-        siguiente_capa = []
-        for u in capa:
-            for v in self._vecinos[u]:
-                if v not in descubierto:
-                    descubierto.add(v)
-                    arbol.agregar_arista(u, v)
-                    siguiente_capa.append(v)
-        capa = siguiente_capa
+    etiqueta = {v: f"{v} ({distancia[v]:.2f})" for v in explorados}
+    for v in explorados:
+        arbol.agregar_nodo(etiqueta[v])
+        if padre[v] is not None:
+            arbol.agregar_arista(etiqueta[padre[v]], etiqueta[v], self._pesos[(padre[v], v)])
     return arbol
 \end{lstlisting}
 
-Cada nodo entra a lo más una vez a una capa y cada lista de vecinos se recorre una
-sola vez, así que el costo es $O(n + m)$. El nodo $v$ queda en la capa $L_j$
-exactamente cuando su distancia a $s$ es $j$, y su padre está en $L_{j-1}$. En
-consecuencia, los extremos de toda arista del árbol BFS están en niveles
-consecutivos, y la altura del árbol es la distancia máxima desde $s$.
+El árbol resultante es un nuevo \texttt{Grafo}. Cada nodo se llama
+\texttt{"nodo (distancia)"}, con la distancia redondeada a dos decimales, y cada
+arista conserva su peso. El árbol contiene solo los nodos alcanzables desde $s$.
+Si hay pesos negativos el método lanza \texttt{ValueError}, porque Dijkstra no es
+correcto en ese caso, y si $s$ no existe lanza \texttt{KeyError}. Las aristas sin
+peso cuentan como peso 1, en cuyo caso las distancias coinciden con las de BFS.
 
-\subsection{Búsqueda en profundidad recursiva: \texttt{DFS\_R(self, s)}}
+\subsection{Complejidad y correctitud}
 
-Es el algoritmo DFS$(G, u)$ visto en clase: se marca $u$ como explorado y, por cada
-arista $(u, v)$ con $v$ no explorado, se agrega $(u, v)$ al árbol y se invoca
-recursivamente DFS$(G, v)$.
+Cada arista puede provocar a lo más una inserción en el montículo, así que este
+recibe $O(m)$ entradas, y cada inserción o extracción cuesta $O(\log m) = O(\log n)$.
+El costo total es $O((n + m) \log n)$.
 
-\begin{lstlisting}[caption={Métodos \texttt{DFS\_R} y \texttt{\_dfs\_recursivo}.}]
-def DFS_R(self, s):
-    self._validar_fuente(s)
-    arbol = Grafo(self.dirigido)
-    arbol.agregar_nodo(s)
-    # La profundidad de la recursión puede llegar al número de nodos
-    limite_original = sys.getrecursionlimit()
-    sys.setrecursionlimit(max(limite_original, len(self.nodos) + 100))
-    try:
-        self._dfs_recursivo(s, set(), arbol)
-    finally:
-        sys.setrecursionlimit(limite_original)
-    return arbol
+La correctitud se basa en el teorema visto en clase: cuando un nodo $v$ entra a
+$S$, su distancia tentativa ya es la distancia mínima. Si existiera un camino $P$
+más corto, tendría una primera arista $(x, y)$ que sale de $S$, y como los pesos
+son no negativos, $L(P) \geq d(x) + \ell(x, y) \geq d(y) \geq d(v)$, porque $v$ se
+eligió con la menor distancia tentativa. Eso contradice que $P$ sea más corto.
 
-def _dfs_recursivo(self, u, explorado, arbol):
-    explorado.add(u)
-    for v in self._vecinos[u]:
-        if v not in explorado:
-            arbol.agregar_arista(u, v)
-            self._dfs_recursivo(v, explorado, arbol)
-\end{lstlisting}
+\subsection{Ejemplo}
 
-En el peor caso la recursión alcanza una profundidad igual al número de nodos (por
-ejemplo, en un camino). Python limita por omisión la profundidad a 1000 llamadas,
-por lo que \texttt{DFS\_R} aumenta el límite antes de empezar y lo restaura al
-terminar. Aun así, la pila del sistema operativo impone un tope: en Python~3.6
-sobre Windows, la recursión funciona hasta unos 4000 niveles de profundidad. Los
-árboles de este proyecto llegan a lo más a 417 niveles, muy por debajo de ese tope.
-El costo es $O(n + m)$.
+Como prueba se usó el grafo dirigido del ejemplo de clase, con origen $s$. La
+tabla~\ref{tab:ejemplo} muestra el orden en que los nodos entran a $S$ y la
+etiqueta que reciben en el árbol; coincide con el resultado de las diapositivas.
 
-\subsection{Búsqueda en profundidad iterativa: \texttt{DFS\_I(self, s)}}
-
-La versión iterativa sustituye la pila de llamadas de Python por una pila
-explícita. Cada elemento de la pila es un par $(u, \text{pendientes})$, donde
-\emph{pendientes} es un iterador sobre los vecinos de $u$ que aún no se han
-revisado. En cada paso se toma el elemento del tope y se avanza su iterador hasta
-encontrar un vecino $v$ no explorado. Si lo encuentra, agrega $(u, v)$ al árbol y
-apila $v$, lo que equivale a la llamada recursiva. Si el iterador se agota, $u$ se
-desapila, lo que equivale al regreso de la llamada.
-
-\begin{lstlisting}[caption={Método \texttt{DFS\_I}.}]
-def DFS_I(self, s):
-    self._validar_fuente(s)
-    arbol = Grafo(self.dirigido)
-    arbol.agregar_nodo(s)
-    explorado = {s}
-    pila = [(s, iter(self._vecinos[s]))]
-    while pila:
-        u, pendientes = pila[-1]
-        for v in pendientes:
-            if v not in explorado:
-                explorado.add(v)
-                arbol.agregar_arista(u, v)
-                pila.append((v, iter(self._vecinos[v])))
-                break
-        else:
-            # u ya no tiene vecinos sin explorar: se regresa a su padre
-            pila.pop()
-    return arbol
-\end{lstlisting}
-
-Como el iterador conserva la posición en la lista de vecinos, cada vecino se revisa
-una sola vez y el costo es $O(n + m)$. Además, la pila contiene en todo momento los
-mismos nodos que la pila de llamadas de \texttt{DFS\_R}, y ambos métodos revisan
-los vecinos en el mismo orden. Por lo tanto, \texttt{DFS\_I} y \texttt{DFS\_R}
-producen exactamente el mismo árbol a partir del mismo nodo fuente. A diferencia de
-la versión recursiva, \texttt{DFS\_I} no depende del límite de recursión de Python.
+\begin{table}[H]
+\centering
+\begin{tabular}{clr}
+\toprule
+Orden & Nodo en el árbol & Padre \\
+\midrule
+1 & \texttt{s (0.00)} & --- \\
+2 & \texttt{2 (9.00)} & $s$ \\
+3 & \texttt{6 (14.00)} & $s$ \\
+4 & \texttt{7 (15.00)} & $s$ \\
+5 & \texttt{3 (32.00)} & 6 \\
+6 & \texttt{5 (34.00)} & 3 \\
+7 & \texttt{4 (45.00)} & 5 \\
+8 & \texttt{t (50.00)} & 5 \\
+\bottomrule
+\end{tabular}
+\caption{Resultado de \texttt{Dijkstra("s")} en el ejemplo de clase.}
+\label{tab:ejemplo}
+\end{table}
 
 \subsection{Verificación}
 
-Además de generar los archivos, se comprobó con un programa de prueba que, en
-grafos de los seis modelos y de los tres tamaños, se cumplen las siguientes
-propiedades:
+Además del ejemplo anterior, se comprobó con un programa de prueba que, en grafos
+de los cinco modelos aleatorios con 30 y 500 nodos y pesos aleatorios, se cumple
+lo siguiente:
 
 \begin{itemize}
-    \item Los tres árboles contienen todos los nodos alcanzables desde $s$, tienen
-          $n - 1$ aristas, son conexos y solo usan aristas del grafo original.
-    \item El nivel de cada nodo en el árbol BFS es igual a su distancia mínima a $s$,
-          calculada de forma independiente.
-    \item En los árboles DFS, toda arista del grafo que no pertenece al árbol une a
-          un nodo con uno de sus ancestros; es decir, no hay aristas cruzadas.
-    \item \texttt{DFS\_R} y \texttt{DFS\_I} producen la misma lista de aristas.
-    \item En un grafo no conexo, el árbol solo contiene la componente de $s$.
-    \item \texttt{DFS\_R} procesa un camino de 4000 nodos sin exceder el límite de
-          recursión.
+    \item La distancia de cada nodo coincide con la calculada de forma independiente
+          por el algoritmo de Bellman--Ford.
+    \item Cada etiqueta tiene el formato \texttt{"nodo (distancia)"}, con dos
+          decimales.
+    \item El árbol tiene un nodo por cada nodo alcanzable, un solo padre por nodo,
+          $n - 1$ aristas, y cada arista conserva el peso del grafo original.
+    \item Para cada arista $(u, v)$ del árbol, $d(v) = d(u) + \ell(u, v)$; es decir,
+          todas las aristas del árbol están en caminos más cortos.
+    \item El método también funciona en grafos dirigidos, sin pesos o no conexos, y
+          rechaza pesos negativos y nodos fuente inexistentes.
 \end{itemize}
 
 Todo el código, incluidos los scripts de generación y de imágenes, se ejecutó con
@@ -259,11 +253,12 @@ Python~3.6.8, la versión solicitada.
 % =====================================================================
 \section{Experimentos}
 
-El script \texttt{generar\_gv.py} genera tres grafos por cada uno de los seis
-modelos del Proyecto~1, con 30, 100 y 500 nodos. Cada grafo se vuelve a generar
-hasta que resulta conexo, de modo que los árboles abarcan todos sus nodos. Luego
-calcula los tres árboles de cada grafo desde el nodo fuente $s$, que es el primer
-nodo del grafo: $0$ en los modelos aleatorios y $(0, 0)$, una esquina, en la malla.
+El script \texttt{generar\_gv.py} genera dos grafos por cada uno de los cinco
+generadores aleatorios: uno con ``pocos'' nodos (30) y otro con ``muchos'' (500).
+La malla no se usa porque no es aleatoria. Cada grafo se vuelve a generar hasta
+que resulta conexo, de modo que el árbol abarca todos sus nodos. Después se le
+asignan pesos aleatorios uniformes entre 1 y 100 y se calcula su árbol de caminos
+más cortos desde el nodo $0$.
 
 \begin{table}[H]
 \centering
@@ -275,119 +270,91 @@ Erd\H{o}s--Rényi & $m = \operatorname{round}\!\left(\dfrac{n(\ln n + 2)}{2}\rig
 Gilbert & $p = \dfrac{\ln n + 3}{n}$ \\[10pt]
 Geográfico simple & $r = \sqrt{\dfrac{\ln n + 4}{\pi n}}$ \\[10pt]
 Barabási--Albert & $d = 4$ \\[4pt]
-Dorogovtsev--Mendes & sin parámetros adicionales \\[4pt]
-Malla & $5 \times 6$, $10 \times 10$ y $20 \times 25$ \\
+Dorogovtsev--Mendes & sin parámetros adicionales \\
 \bottomrule
 \end{tabular}
 \caption{Parámetros de los generadores.}
 \end{table}
 
 Los grafos se guardan en \texttt{gv/generados/} y los árboles en
-\texttt{gv/calculados/}. El script \texttt{generar\_imagenes.py} dibuja todos los
-archivos con Graphviz y elige la forma de dibujo según el tipo de grafo:
-
-\begin{itemize}
-    \item \textbf{Árboles BFS:} \texttt{twopi}, que coloca la raíz al centro y cada
-          capa en un anillo.
-    \item \textbf{Malla y sus árboles:} \texttt{neato}, con cada nodo fijo en su
-          posición de la cuadrícula.
-    \item \textbf{Demás grafos y árboles DFS:} \texttt{sfdp}.
-\end{itemize}
+\texttt{gv/calculados/}. El script \texttt{generar\_imagenes.py} los dibuja con
+Graphviz. Los grafos generados se dibujan con \texttt{sfdp}, y en los de 30 nodos
+se escribe el peso sobre cada arista. Los árboles se dibujan con \texttt{twopi},
+con la raíz al centro y la etiqueta \texttt{nodo (distancia)} en cada nodo.
 
 % =====================================================================
 \section{Resultados}
 
-La tabla~\ref{tab:alturas} muestra el tamaño de cada grafo generado y la altura de
-sus árboles, es decir, el nivel más profundo alcanzado desde $s$. Los grafos son
-aleatorios, así que los valores corresponden a la ejecución incluida en el
-repositorio y cambian si los grafos se vuelven a generar.
+La tabla~\ref{tab:resultados} resume los árboles obtenidos. La \emph{altura} es el
+mayor número de aristas en un camino del árbol desde $s$. Como comparación se
+incluye la altura del árbol BFS del mismo grafo, que ignora los pesos. Los grafos y
+los pesos son aleatorios, así que los valores corresponden a la ejecución incluida
+en el repositorio.
 
 \begin{table}[H]
 \centering
-\begin{tabular}{lrrrr}
+\begin{tabular}{lrrrrrr}
 \toprule
- & & & \multicolumn{2}{c}{Altura del árbol} \\
-\cmidrule(l){4-5}
-Grafo & Nodos & Aristas & BFS & DFS \\
+ & & & \multicolumn{2}{c}{Distancia a $s$} & \multicolumn{2}{c}{Altura} \\
+\cmidrule(lr){4-5}\cmidrule(l){6-7}
+Grafo & Nodos & Aristas & Máxima & Promedio & Dijkstra & BFS \\
 \midrule
-Erd\H{o}s--Rényi & 30 & 81 & 3 & 26 \\
-Gilbert & 30 & 80 & 4 & 22 \\
-Geográfico simple & 30 & 89 & 5 & 26 \\
-Barabási--Albert & 30 & 55 & 9 & 18 \\
-Dorogovtsev--Mendes & 30 & 57 & 3 & 7 \\
-Malla $5 \times 6$ & 30 & 49 & 9 & 22 \\
+Erd\H{o}s--Rényi & 30 & 81 & 122.92 & 63.63 & 6 & 3 \\
+Gilbert & 30 & 83 & 117.53 & 55.20 & 4 & 3 \\
+Geográfico simple & 30 & 84 & 238.10 & 61.61 & 8 & 8 \\
+Barabási--Albert & 30 & 56 & 194.53 & 105.90 & 9 & 6 \\
+Dorogovtsev--Mendes & 30 & 57 & 188.03 & 102.24 & 5 & 4 \\
 \midrule
-Erd\H{o}s--Rényi & 100 & 330 & 5 & 83 \\
-Gilbert & 100 & 367 & 4 & 82 \\
-Geográfico simple & 100 & 368 & 9 & 65 \\
-Barabási--Albert & 100 & 197 & 21 & 66 \\
-Dorogovtsev--Mendes & 100 & 197 & 4 & 16 \\
-Malla $10 \times 10$ & 100 & 180 & 18 & 78 \\
-\midrule
-Erd\H{o}s--Rényi & 500 & 2054 & 5 & 406 \\
-Gilbert & 500 & 2349 & 4 & 417 \\
-Geográfico simple & 500 & 2348 & 17 & 338 \\
-Barabási--Albert & 500 & 996 & 90 & 287 \\
-Dorogovtsev--Mendes & 500 & 997 & 5 & 21 \\
-Malla $20 \times 25$ & 500 & 955 & 43 & 299 \\
+Erd\H{o}s--Rényi & 500 & 2054 & 162.04 & 88.63 & 10 & 5 \\
+Gilbert & 500 & 2281 & 125.69 & 68.82 & 10 & 4 \\
+Geográfico simple & 500 & 2361 & 341.20 & 149.57 & 26 & 17 \\
+Barabási--Albert & 500 & 997 & 3390.00 & 1747.04 & 114 & 89 \\
+Dorogovtsev--Mendes & 500 & 997 & 300.25 & 116.36 & 9 & 6 \\
 \bottomrule
 \end{tabular}
-\caption{Tamaño de los grafos generados y altura de sus árboles. La columna DFS
-vale para \texttt{DFS\_R} y \texttt{DFS\_I}, que producen el mismo árbol.}
-\label{tab:alturas}
+\caption{Distancias y alturas de los árboles de caminos más cortos.}
+\label{tab:resultados}
 \end{table}
 
 De la tabla se desprenden varias observaciones:
 
 \begin{itemize}
-    \item \textbf{BFS produce árboles poco profundos.} En los modelos de
-          Erd\H{o}s--Rényi, Gilbert y Dorogovtsev--Mendes, la altura del árbol BFS
-          se mantiene entre 3 y 5 aunque $n$ pase de 30 a 500: todo nodo está a
-          pocos pasos de $s$.
-    \item \textbf{DFS produce árboles profundos.} En los grafos más densos, el árbol
-          DFS es casi un camino: con 500 nodos, su altura supera 400 en
-          Erd\H{o}s--Rényi y Gilbert.
-    \item \textbf{Dorogovtsev--Mendes es la excepción en DFS.} Su árbol DFS es mucho
-          más bajo que en los demás modelos (21 con 500 nodos), porque cada nodo
-          nuevo se conecta solo a los extremos de una arista existente, y los nodos
-          antiguos concentran casi todas las conexiones.
-    \item \textbf{La geometría limita a BFS.} En el modelo geográfico y en la malla,
-          las aristas solo unen nodos cercanos, así que la distancia desde $s$ crece
-          con el tamaño del grafo. En la malla, la altura BFS es exactamente la
-          distancia de la esquina $(0, 0)$ a la esquina opuesta: $(f - 1) + (c - 1)$
-          para una malla de $f \times c$.
-    \item \textbf{Barabási--Albert tiene el árbol BFS más alto.} La variante
-          implementada limita el grado de cada nodo a $d = 4$, por lo que no se
-          forman nodos muy conectados que acorten las distancias.
+    \item \textbf{Dijkstra produce árboles más altos que BFS.} En casi todos los
+          grafos, el camino más corto por peso usa más aristas que el camino con
+          menos aristas: conviene dar varios pasos por aristas ligeras antes que
+          uno solo por una arista pesada. Con 500 nodos, el árbol de
+          Erd\H{o}s--Rényi tiene altura 10 con Dijkstra y 5 con BFS.
+    \item \textbf{En los grafos densos las distancias apenas crecen.} En
+          Erd\H{o}s--Rényi y Gilbert, la distancia máxima pasa de unos 120 con 30
+          nodos a entre 125 y 162 con 500 nodos. Con más aristas hay más rutas
+          alternativas y es más fácil encontrar una formada por aristas ligeras.
+    \item \textbf{Barabási--Albert tiene las distancias más grandes.} La variante
+          implementada limita el grado de cada nodo a $d = 4$, lo que produce
+          caminos muy largos: con 500 nodos, el nodo más lejano está a 114 aristas
+          y a una distancia de 3390.
+    \item \textbf{En el modelo geográfico la altura crece con el tamaño.} Como las
+          aristas solo unen nodos cercanos, llegar a los nodos lejanos requiere
+          muchas aristas, igual que en BFS.
 \end{itemize}
 
 % =====================================================================
 \section{Visualización}
 
-Las figuras~\ref{fig:er30} a~\ref{fig:malla500} muestran cada grafo generado junto
-con sus tres árboles. Como \texttt{DFS\_R} y \texttt{DFS\_I} producen el mismo
-árbol, sus imágenes coinciden.
+Las figuras~\ref{fig:er30} a~\ref{fig:dm500} muestran cada grafo generado junto con
+su árbol de caminos más cortos. En los árboles de 500 nodos las etiquetas son
+pequeñas; se leen con zoom en el PDF o en las imágenes de \texttt{imagenes/calculados/}.
 \clearpage
 
-\cuatrografos{1_Erdos_Renyi_n30}{Erd\H{o}s--Rényi con 30 nodos}{fig:er30}
-\cuatrografos{2_Gilbert_n30}{Gilbert con 30 nodos}{fig:gil30}
-\cuatrografos{3_Geografico_n30}{Geográfico simple con 30 nodos}{fig:geo30}
-\cuatrografos{4_Barabasi_Albert_n30}{Barabási--Albert con 30 nodos}{fig:ba30}
-\cuatrografos{5_Dorogovtsev_Mendes_n30}{Dorogovtsev--Mendes con 30 nodos}{fig:dm30}
-\cuatrografos{6_Malla_n30}{Malla de $5 \times 6$}{fig:malla30}
+\grafoyarbol{1_Erdos_Renyi_n30}{Erd\H{o}s--Rényi con 30 nodos}{fig:er30}
+\grafoyarbol{2_Gilbert_n30}{Gilbert con 30 nodos}{fig:gil30}
+\grafoyarbol{3_Geografico_n30}{Geográfico simple con 30 nodos}{fig:geo30}
+\grafoyarbol{4_Barabasi_Albert_n30}{Barabási--Albert con 30 nodos}{fig:ba30}
+\grafoyarbol{5_Dorogovtsev_Mendes_n30}{Dorogovtsev--Mendes con 30 nodos}{fig:dm30}
 
-\cuatrografos{1_Erdos_Renyi_n100}{Erd\H{o}s--Rényi con 100 nodos}{fig:er100}
-\cuatrografos{2_Gilbert_n100}{Gilbert con 100 nodos}{fig:gil100}
-\cuatrografos{3_Geografico_n100}{Geográfico simple con 100 nodos}{fig:geo100}
-\cuatrografos{4_Barabasi_Albert_n100}{Barabási--Albert con 100 nodos}{fig:ba100}
-\cuatrografos{5_Dorogovtsev_Mendes_n100}{Dorogovtsev--Mendes con 100 nodos}{fig:dm100}
-\cuatrografos{6_Malla_n100}{Malla de $10 \times 10$}{fig:malla100}
-
-\cuatrografos{1_Erdos_Renyi_n500}{Erd\H{o}s--Rényi con 500 nodos}{fig:er500}
-\cuatrografos{2_Gilbert_n500}{Gilbert con 500 nodos}{fig:gil500}
-\cuatrografos{3_Geografico_n500}{Geográfico simple con 500 nodos}{fig:geo500}
-\cuatrografos{4_Barabasi_Albert_n500}{Barabási--Albert con 500 nodos}{fig:ba500}
-\cuatrografos{5_Dorogovtsev_Mendes_n500}{Dorogovtsev--Mendes con 500 nodos}{fig:dm500}
-\cuatrografos{6_Malla_n500}{Malla de $20 \times 25$}{fig:malla500}
+\grafoyarbol{1_Erdos_Renyi_n500}{Erd\H{o}s--Rényi con 500 nodos}{fig:er500}
+\grafoyarbol{2_Gilbert_n500}{Gilbert con 500 nodos}{fig:gil500}
+\grafoyarbol{3_Geografico_n500}{Geográfico simple con 500 nodos}{fig:geo500}
+\grafoyarbol{4_Barabasi_Albert_n500}{Barabási--Albert con 500 nodos}{fig:ba500}
+\grafoyarbol{5_Dorogovtsev_Mendes_n500}{Dorogovtsev--Mendes con 500 nodos}{fig:dm500}
 
 \end{document}

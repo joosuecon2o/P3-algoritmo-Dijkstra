@@ -1,5 +1,8 @@
 # Módulo de grafos que contiene las clases Nodo, Arista y Grafo, así como funciones para generar grafos específicos.
 # Importa las clases Nodo, Arista y Grafo desde sus respectivos módulos.
+import heapq
+import itertools
+import random
 import sys
 
 from .nodo import Nodo
@@ -15,6 +18,7 @@ class Grafo:
         self.aristas = []
         self._vecinos = {}
         self._grado = {}
+        self._pesos = {}
 
     # Agrega un nodo al grafo
     def agregar_nodo(self, id_nodo):
@@ -37,11 +41,33 @@ class Grafo:
         arista = Arista(self.nodos[id_nodo1], self.nodos[id_nodo2], self.dirigido, peso)
         self.aristas.append(arista)
         self._vecinos[id_nodo1].add(id_nodo2)
+        self._pesos[(id_nodo1, id_nodo2)] = peso
         if not self.dirigido:
             self._vecinos[id_nodo2].add(id_nodo1)
+            self._pesos[(id_nodo2, id_nodo1)] = peso
         self._grado[id_nodo1] += 1
         self._grado[id_nodo2] += 1
         return arista
+
+    # Obtiene el peso de la arista (id_nodo1, id_nodo2); None si la arista no tiene peso
+    def peso(self, id_nodo1, id_nodo2):
+        return self._pesos[(id_nodo1, id_nodo2)]
+
+    # Asigna a cada arista un peso aleatorio uniforme en [minimo, maximo]
+    def asignar_pesos_aleatorios(self, minimo=1, maximo=100, decimales=2):
+        """
+        Asigna a cada arista del grafo un peso aleatorio, redondeado a
+        'decimales' cifras, tomado de una distribución uniforme en [minimo, maximo].
+        :param minimo: peso mínimo (>= 0, porque Dijkstra no admite pesos negativos)
+        :param maximo: peso máximo
+        :param decimales: número de decimales del peso
+        """
+        for arista in self.aristas:
+            u, v = arista.origen.id_nodo, arista.destino.id_nodo
+            arista.peso = round(random.uniform(minimo, maximo), decimales)
+            self._pesos[(u, v)] = arista.peso
+            if not self.dirigido:
+                self._pesos[(v, u)] = arista.peso
 
     # Obtiene los vecinos de un nodo
     def vecinos(self, id_nodo):
@@ -151,12 +177,64 @@ class Grafo:
                 pila.pop()
         return arbol
 
+    # Algoritmo de Dijkstra
+    def Dijkstra(self, s):
+        """
+        Calcula el árbol de caminos más cortos desde s con el algoritmo de Dijkstra.
+        S es el conjunto de nodos explorados, cuya distancia a s ya es definitiva.
+        En cada paso se extrae de la cola de prioridad el nodo no explorado con la
+        menor distancia tentativa (delmin), se agrega a S y se relajan sus aristas:
+        si d(u) + l(u, v) mejora la distancia de v, se actualiza la distancia y el
+        padre de v (decrease key, implementado insertando una nueva entrada en la
+        cola y descartando después las entradas obsoletas).
+        Las aristas sin peso cuentan como peso 1.
+        :param s: identificador del nodo fuente
+        :return: árbol de caminos más cortos (Grafo). Cada nodo se llama
+                 "nodo (distancia)", por ejemplo "nodo_2 (22.45)", y cada arista
+                 (padre, hijo) conserva su peso.
+        """
+        self._validar_fuente(s)
+        for arista in self.aristas:
+            if arista.peso is not None and arista.peso < 0:
+                raise ValueError("Dijkstra no admite aristas con peso negativo")
+
+        distancia = {s: 0}
+        padre = {s: None}
+        explorados = []         # nodos en el orden en que entran a S
+        en_s = set()
+        desempate = itertools.count()   # evita comparar identificadores de nodos
+        cola = [(0, next(desempate), s)]
+        while cola:
+            d_u, _, u = heapq.heappop(cola)          # delmin
+            if u in en_s:
+                continue                             # entrada obsoleta
+            en_s.add(u)
+            explorados.append(u)
+            for v in self._vecinos[u]:
+                if v in en_s:
+                    continue
+                peso = self._pesos[(u, v)]
+                nueva = d_u + (1 if peso is None else peso)
+                if v not in distancia or nueva < distancia[v]:
+                    distancia[v] = nueva             # decrease key
+                    padre[v] = u
+                    heapq.heappush(cola, (nueva, next(desempate), v))
+
+        arbol = Grafo(self.dirigido)
+        etiqueta = {v: f"{v} ({distancia[v]:.2f})" for v in explorados}
+        for v in explorados:
+            arbol.agregar_nodo(etiqueta[v])
+            if padre[v] is not None:
+                arbol.agregar_arista(etiqueta[padre[v]], etiqueta[v], self._pesos[(padre[v], v)])
+        return arbol
+
     # Verifica que el nodo fuente exista en el grafo
     def _validar_fuente(self, s):
         if s not in self.nodos:
             raise KeyError(f"El nodo fuente {s!r} no existe en el grafo")
 
-    # Guarda el grafo en un archivo en formato Graphviz
+    # Guarda el grafo en un archivo en formato Graphviz; el peso de cada arista,
+    # si lo tiene, se escribe en el atributo weight
     def guardar_graphviz(self, archivo):
         conector = "->" if self.dirigido else "--"
         tipo = "digraph" if self.dirigido else "graph"
@@ -165,7 +243,8 @@ class Grafo:
             for id_nodo in self.nodos:
                 f.write(f'    "{id_nodo}";\n')
             for arista in self.aristas:
-                f.write(f'    "{arista.origen.id_nodo}" {conector} "{arista.destino.id_nodo}";\n')
+                atributos = "" if arista.peso is None else f" [weight={arista.peso}]"
+                f.write(f'    "{arista.origen.id_nodo}" {conector} "{arista.destino.id_nodo}"{atributos};\n')
             f.write("}\n")
 
     # Devuelve el número de nodos en el grafo

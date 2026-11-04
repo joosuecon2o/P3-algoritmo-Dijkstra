@@ -2,7 +2,6 @@ import math
 import os
 
 from grafos import (
-    grafo_malla,
     grafo_erdos_renyi,
     grafo_gilbert,
     grafo_geografico,
@@ -10,8 +9,10 @@ from grafos import (
     grafo_dorogovtsev_mendes,
 )
 
-TAMANOS = [30, 100, 500]
-DIMENSIONES_MALLA = {30: (5, 6), 100: (10, 10), 500: (20, 25)}
+# "Pocos" y "muchos" nodos para cada generador aleatorio
+TAMANOS = [30, 500]
+PESO_MINIMO = 1
+PESO_MAXIMO = 100
 CARPETA_GENERADOS = os.path.join("gv", "generados")
 CARPETA_CALCULADOS = os.path.join("gv", "calculados")
 MAX_INTENTOS = 1000
@@ -37,9 +38,6 @@ def generar_todos():
 
         procesar(lambda: grafo_dorogovtsev_mendes(n), f"5_Dorogovtsev_Mendes_n{n}")
 
-        filas, columnas = DIMENSIONES_MALLA[n]
-        procesar(lambda: grafo_malla(filas, columnas), f"6_Malla_n{n}")
-
 
 def generar_conexo(generador):
     for _ in range(MAX_INTENTOS):
@@ -49,19 +47,15 @@ def generar_conexo(generador):
     raise RuntimeError(f"No se obtuvo un grafo conexo en {MAX_INTENTOS} intentos")
 
 
-# Genera un grafo, lo guarda y guarda sus tres árboles (BFS, DFS_R y DFS_I).
-# El nodo fuente es el primero del grafo: 0 en los modelos aleatorios y (0, 0) en la malla.
+# Genera un grafo conexo, le asigna pesos aleatorios a sus aristas, lo guarda y
+# guarda su árbol de caminos más cortos. El nodo fuente es el nodo 0.
 def procesar(generador, nombre):
     grafo = generar_conexo(generador)
+    grafo.asignar_pesos_aleatorios(PESO_MINIMO, PESO_MAXIMO)
     guardar(grafo, os.path.join(CARPETA_GENERADOS, f"{nombre}.gv"))
 
     s = next(iter(grafo.nodos))
-    for algoritmo, arbol in (
-        ("BFS", grafo.BFS(s)),
-        ("DFS_R", grafo.DFS_R(s)),
-        ("DFS_I", grafo.DFS_I(s)),
-    ):
-        guardar(arbol, os.path.join(CARPETA_CALCULADOS, f"{nombre}_{algoritmo}.gv"))
+    guardar(grafo.Dijkstra(s), os.path.join(CARPETA_CALCULADOS, f"{nombre}_Dijkstra.gv"))
 
 
 def guardar(grafo, ruta):
